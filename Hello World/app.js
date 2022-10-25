@@ -8,17 +8,21 @@ console.log(__dirname)
 const names = require('./myCards.js')
 console.log(names)
 
-const hello = (name) => {
-    console.log(`Hello there ${name}`);
-}
-
+console.log('yes')
 
 // Bring in HTTP module
 const http = require('http')
 
 const server = http.createServer((req, res) => {
-    res.write('Welcome to my homepage!')
-    res.end()
+    if(req.url === '/') {
+        res.end('Welcome to my homepage')
+    }
+    if(req.url === '/about') {
+        res.end('Here is my short history')
+    }
+
 })
+
+
 
 server.listen(521)
