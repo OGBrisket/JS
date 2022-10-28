@@ -9,6 +9,7 @@ const names = require('./myCards.js')
 console.log(names)
 
 console.log('yes')
+console.log('hello people')
 
 // Bring in HTTP module
 const http = require('http')
