@@ -1,11 +1,13 @@
-header = document.querySelector("h1")
-buttonFirstCard = document.querySelector("#firstCard")
-buttonSecondCard = document.querySelector("#secondCard")
-buttonThirdCard = document.querySelector("#thirdCard")
-buttonFourthCard = document.querySelector("#fourthCard")
-buttonFifthCard = document.querySelector("#fifthCard")
+"use strict";
 
-buttons = [buttonFirstCard, buttonSecondCard, buttonThirdCard, buttonFourthCard, buttonFifthCard]
+const header = document.querySelector("h1");
+const buttonFirstCard = document.querySelector("#firstCard");
+const buttonSecondCard = document.querySelector("#secondCard");
+const buttonThirdCard = document.querySelector("#thirdCard");
+const buttonFourthCard = document.querySelector("#fourthCard");
+const buttonFifthCard = document.querySelector("#fifthCard");
+
+const buttons = [buttonFirstCard, buttonSecondCard, buttonThirdCard, buttonFourthCard, buttonFifthCard]
 
 // Each card has a value, a suit, and a status of whether it's drawn or not
 class Card {
@@ -16,15 +18,59 @@ class Card {
     };
 
     toString() {
-        return `${this.value} ${this.suit}`;
+        return `${this.value} of ${this.suit}`;
+    }
+}
+
+// Deck objects to hold cards drawn and undrawn
+class Deck {
+    // Puts in all cards when instantiated
+    constructor() {
+        this.cards = [];
+        this.suits = ["Spades", "Hearts", "Clubs", "Diamonds"];
+        this.values = [2, 3, 4, 5, 6, 7, 8, 9, 10, "Jack", "Queen", "King", "Ace"];
+        for (const suit of this.suits) {
+            for (const value of this.values) {
+                this.cards.push(new Card(value, suit));
+            }
+        }
+    };
+
+    recreateDeck() { 
+        this.cards = [];
+        for (let suit of this.suits) {
+            for (let value of this.values) {
+                this.cards.push(new Card(value, suit));
+            }
+        }
+    };
+
+    //Returns a random undrawn card and marks it as drawn
+    drawCard() {
+        const undrawnCards = [...this.cards].filter((potentialCard) => {
+            return potentialCard.drawn === false
+        }
+        );
+
+        const drawnCard = undrawnCards[Math.floor(Math.random() * undrawnCards.length)];
+        drawnCard.drawn = true;
+
+        return drawnCard;
+    }
+
+    toString() {
+        return `${this.cards}`
     }
 }
 
 
+
 // The hand will hold 5 cards, for Deuces Wild
 class Hand {
-    constructor() {
+    constructor(drawDeck) {
         this.cards = [];
+        this.drawDeck = drawDeck;
+        this.deucesDeal();
     };
 
     clear() {
@@ -40,9 +86,16 @@ class Hand {
     };
 
     deucesDeal() {
+        for (let i = 0; i < 5; i++) {
+            this.addCard(this.drawDeck.drawCard());
+        }
+    };
+
+    // Redeals deck
+    deucesRedeal() {
         this.clear();
         for (let i = 0; i < 5; i++) {
-            this.addCard(deck.drawCard());
+            this.addCard(this.drawDeck.drawCard());
         }
     };
 
@@ -53,9 +106,12 @@ class Hand {
 
 // The deuces wild game will hold a hand and manage other aspects of the web page
 class deucesWildGame {
-    constructor(newHand, buttons) {
-        this.hand = newHand;
+    constructor(buttons) {
+        this.deck = new Deck();        
+        this.hand = new Hand(this.deck);
         this.buttons = buttons;
+        this.setButtonsToCards();
+        this.listenForCardClicks();
     };
 
     // Update buttons to text values of cards
@@ -65,59 +121,28 @@ class deucesWildGame {
         }
     }
 
-    startDeucesHand() {
-        deck.createDeck();
+    // Needed in case I need a restart of the game function
+    restartDeucesHand() {
+        this.deck.recreateDeck();
         this.hand.deucesDeal();
         this.setButtonsToCards();
     }
-}
 
+    onClickButtonChange(evt) {
+        evt.target.className = "selectedCard";
+    }
 
-// Establish 52 card random since it will be used frequently
-function getRandomCard() {
-    return Math.floor(Math.random() * 52)
-}
-
-deck = {
-    cards: [],
-    suits: ["Spades", "Hearts", "Clubs", "Diamonds"],
-    values: [2, 3, 4, 5, 6, 7, 8, 9, 10, "Jack", "Queen", "King", "Ace"],
-
-    createDeck: function() { 
-        this.cards = [];
-        for (suit of this.suits) {
-            for (value of this.values) {
-                this.cards.push(new Card(value, suit));
-            }
+    // Add onClick event listeners
+    // Futture, need to remove event listeners for multiple games, event listener not removed
+    listenForCardClicks() {
+        for (const button of buttons) {
+            button.addEventListener("click", this.onClickButtonChange);
         }
-    },
-
-    drawCard: function() {
-        undrawnCards = [...this.cards].filter((potentialCard) => {
-            return potentialCard.drawn === false
-        }
-        );
-
-        drawnCard = undrawnCards[Math.floor(Math.random() * undrawnCards.length)];
-        drawnCard.drawn = true;
-
-        return drawnCard;
-
-        
     }
 }
 
 
-
-newGame = new deucesWildGame(new Hand(), buttons);
-newGame.startDeucesHand();
-console.log(`${newGame.hand}`)
+let newGame = new deucesWildGame(buttons);
+console.log(`${newGame.hand}`);
 
 
-
-
-
-//test
-for (let i = 0; i < 10; i++) {
-    deck.drawCard();
-}
