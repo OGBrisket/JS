@@ -17,6 +17,14 @@ class Card {
         this.drawn = false;
     };
 
+    getSuit() {
+        return this.suit;
+    }
+
+    getValue() {
+        return this.value;
+    }
+
     toString() {
         return `${this.value} of ${this.suit}`;
     }
@@ -28,7 +36,7 @@ class Deck {
     constructor() {
         this.cards = [];
         this.suits = ["Spades", "Hearts", "Clubs", "Diamonds"];
-        this.values = [2, 3, 4, 5, 6, 7, 8, 9, 10, "Jack", "Queen", "King", "Ace"];
+        this.values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"];
         for (const suit of this.suits) {
             for (const value of this.values) {
                 this.cards.push(new Card(value, suit));
@@ -58,10 +66,23 @@ class Deck {
         return drawnCard;
     }
 
+    // Return a specific card in the deck, drawn or undrawn
+    queryCard(value, suit) {
+        for (const card of this.cards) {
+            if (card.getValue() === value && card.getSuit() === suit) {
+                return card;
+            }
+        }
+        
+        // Only runs if function doesn't return a card
+        throw new Error("Card not queried, give 'Value Suit'");
+    }
+
     toString() {
         return `${this.cards}`
     }
 }
+
 
 
 
@@ -99,30 +120,95 @@ class Hand {
         }
     };
 
+    //Manually replace one card, drawn or undrawn, with a certain value and suit, index count starting at zero
+    replaceCard(cardIndexToReplace, value, suit) {
+        this.cards[cardIndexToReplace] = this.drawDeck.queryCard(value, suit);
+    }
+
     toString() {
         return `${this.cards}`;
     }
 }
 
-// The deuces wild game will hold a hand and manage other aspects of the web page
-class deucesWildGame {
-    constructor(buttons) {
-        this.deck = new Deck();        
-        this.hand = new Hand(this.deck);
+// A separate class will be used to manage the scoring DOM elements and caclulations.
+// Odds will take in an array of payouts for future game modes
+class scoringCalculator {
+    constructor(hand, DOMless, odds) {
+        if (odds === undefined) {
+            this.hand = hand;
+            this.DOMless = DOMless;
+
+            this.odds = {
+                natRoyalFlush: 800,
+                fourDeuces: 200,
+                wildRoyalFlush: 25,
+                fiveOfAKind: 15,
+                straightFlush: 9,
+                fourOfAKind: 5,
+                fullHouse: 3,
+                flush: 2,
+                straight: 2,
+                threeOfAKind: 1
+            }
+        } else {
+            this.odds = odds;
+        }
+    }
+
+    // Returns true if hand is a royal flush
+    identifyRoyalFlush(hand) {
+        let suit;
+        const cardsDrawn = {
+            "Ace": 0,
+            "King": 0,
+            "Queen": 0,
+            "Jack": 0,
+            "10": 0
+        }
+
+        let count = 0;
+        for (const eachCard of hand.getAllCards()) {
+            if (count === 0) {
+                suit = eachCard.getSuit();
+            }
+
+            // If card value has already been drawn or doesn't have the same suit as first card, immediately returns false
+            if (eachCard.getSuit() !== suit || cardsDrawn[`${eachCard.getValue()}`] !== 0) {
+                console.log(`false ${eachCard.getValue()} ${suit} ${eachCard.getSuit()}`);
+                return false;
+            } else if (count !== 4) {
+                cardsDrawn[`${eachCard.getValue()}`] = 1;
+                console.log(`true ${eachCard.getValue()}`);
+            } else {
+                return true;
+            }
+
+            count++;
+        }
+    }
+    
+
+
+
+
+    //test
+}
+
+// The DOMManager will manage all interactions with the buttons and game screen
+class DOMManager {
+    constructor(hand, buttons, gameParent) {
+        this.hand = hand;
         this.buttons = buttons;
+
         this.buttonIDs = ["firstCard","secondCard","thirdCard","fourthCard","fifthCard"];
         this.submitButton = document.querySelector("#submitButton");
         this.cardsSubmitted = false;
+    }
 
-        this.createNewGameButtons();
-        this.setButtonsToCards();
-        this.listenForCardClicks();
-    };
 
     // We'll regenerate buttons in case multiple games are called. This will remove event listeners
+    // Does not have any card based interactions
     createNewGameButtons() {
-        const buttonIDs = ["firstCard","secondCard","thirdCard","fourthCard","fifthCard"];
-
         for (let i=0; i<5; i++) {
             const newButton = document.createElement("button");
             const buttonElementParent = document.querySelector("#buttonParent");
@@ -137,19 +223,23 @@ class deucesWildGame {
     };
 
     // Update buttons to text values of cards
+    // if testCards have been passed, will assign those cards instead
     setButtonsToCards() {
         for (let i = 0; i < 5; i++) {
             this.buttons[i].textContent = `${this.hand.getAllCards()[i]}`;
         }
     }
 
-    // Needed in case I need a restart of the game function
-    restartDeucesHand() {
-        this.deck.recreateDeck();
-        this.hand.deucesDeal();
-        this.setButtonsToCards();
+    // Add onClick event listeners for cards and submit
+    listenForCardClicks() {
+        for (const button of buttons) {
+            button.addEventListener("click", this.onClickButtonChange);
+        };
+
+        this.submitButton.addEventListener("click", this.onSubmitButtonClick.bind(this))
     }
 
+    // Change card buttons
     onClickButtonChange(evt) {
         if (evt.target.className === "unselectedCard") {
             evt.target.className = "selectedCard";           
@@ -159,27 +249,16 @@ class deucesWildGame {
 
     }
 
-    // Add onClick event listeners
-    // Futture, need to remove event listeners for multiple games, event listener not removed
-    listenForCardClicks() {
-        for (const button of buttons) {
-            button.addEventListener("click", this.onClickButtonChange);
-        };
-
-        this.submitButton.addEventListener("click", this.onSubmitButtonClick)
-    }
 
     onSubmitButtonClick(evt) {
         const selectedCards = document.querySelectorAll(".selectedCard");
 
-        //Event listeners don't have access to the parent object, so I need to manually set it
-        const self = newGame;
 
         for (const cardNode of selectedCards) {
             console.log(`${cardNode.id}`);
             console.log(`test`);
 
-            const cardIndex = self.buttonIDs.indexOf(`${cardNode.id}`);
+            const cardIndex = this.buttonIDs.indexOf(`${cardNode.id}`);
             console.log(`${cardIndex}`)
         }
         
@@ -190,10 +269,62 @@ class deucesWildGame {
         const submitLabel = document.createElement("label");
         submitLabel.textContent = "Great job!";
         evt.target.after(submitLabel);
-        this.cardsSubmitted = true;
+    }
+}
+
+// The deuces wild game will manage most of the gameflow and call DOM Manager methods as needed
+// DOMless setting is for headless games calculating values
+// testCards will take an array that with string "Value Suit" that will manually set cards for testing
+class deucesWildGame {
+    constructor(DOMless, buttons, testCards) {
+        this.DOMless = DOMless;
+        this.buttons = buttons;
+        this.testCards = testCards;
+
+        this.deck = new Deck();        
+        this.hand = new Hand(this.deck);
+        this.DOMManager = new DOMManager(this.hand, this.buttons, self);
+        this.scoringCalculator = new scoringCalculator(this.hand, false);
+
+
+
+
+        this.DOMManager.createNewGameButtons();
+        this.testCardReplacer(testCards);
+        this.DOMManager.setButtonsToCards();
+        this.DOMManager.listenForCardClicks();
+    };
+
+
+    // Will replace cards with testCards as needed since hand is dealt on creation
+    // Will take any siize array with elementrs "Value Suit"
+    testCardReplacer(testCards) {
+        if (testCards !== undefined) {
+            for (let i = 0; i < 5; i++) {
+                if (testCards[i] !== undefined) {
+                    const value = testCards[i].split(" ")[0];                
+                    const suit = testCards[i].split(" ")[1];
+    
+                    this.hand.replaceCard(i, value, suit);
+                }            
+            }
+        }
+    }
+
+
+
+    // Needed in case I need a restart of the game function
+    restartDeucesHand() {
+        this.deck.recreateDeck();
+        this.hand.deucesDeal();
+        this.DOMManager.setButtonsToCards();
     }
 }
 
 
-let newGame = new deucesWildGame(buttons);
+let newGame = new deucesWildGame(false, buttons, ["Ace Spades", "King Spades", "Queen Spades", "Jack Spades", "10 Spades"]);
+
+// test
 console.log(`${newGame.hand}`);
+const testScorer = new scoringCalculator(false);
+console.log(`${testScorer.identifyRoyalFlush(newGame.hand, false)}`);
